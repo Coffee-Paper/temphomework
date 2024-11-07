@@ -39,17 +39,18 @@ class beamform_alg:
             np.exp(2j * np.pi * f0 * self.t), (self.num_t, 1)
         )                                                                           # 单频信号
         self.rand_signal = np.random.randn(self.num_t, L1)                          # 随机信号
-        self.signal = self.sin_signal if signal_type == 1 else self.rand_signal
+        self.signal = self.rand_signal if signal_type == 1 else self.sin_signal
         self.signal[-1, :] = self.rand_signal[-1, :]
         self.noise = np.random.randn(self.N.shape[0], L1) + 1j * np.random.randn(
             self.N.shape[0], L1
         )
         self.snr_ratio = (1 / (10 ** (snr / 10))) ** 0.5
         self.steer_sig = self.steer_vector @ self.signal
-        self.X = self.steer_sig + self.snr_ratio * self.noise    # X为含噪声信号
+        self.X = self.steer_sig + self.snr_ratio * self.noise                        # X为含噪声信号
         self.R0 = self.X @ self.X.T.conj() / self.X.shape[1]                         # 自相关矩阵
         self.R = self._space_smooth_alg() if space_smooth else self.R0
-        
+        # print('1')
+
     def _space_smooth_alg(self,):
         smooth_array_num = self.N_array - self.eq_array + 1
         R_sig = np.zeros([self.eq_array,self.eq_array])
@@ -57,7 +58,7 @@ class beamform_alg:
             sub = self.steer_sig[i:self.eq_array+i,:]
             R_sig = R_sig + (sub @ sub.T.conj() / sub.shape[1])
         R_sig = R_sig / smooth_array_num
-        
+
         self.N_array = self.eq_array
         self.N = np.arange(0, self.N_array, 1).reshape([-1, 1])
         self.steer_vector = np.exp(                                        # 导向矢量
@@ -74,8 +75,7 @@ class beamform_alg:
         self.steer_sig = self.steer_vector @ self.signal
         self.X = self.steer_sig + self.snr_ratio * self.noise    # X为含噪声信号
         return R_sig
-     
-    
+
     def CBF(self):
         yy = []
         for th in self.theta_scan[0]:
@@ -100,7 +100,7 @@ class beamform_alg:
         yy = yy / np.max(yy)
         y = 10 * np.log10(np.array(yy).reshape([-1, 1]))
         return y
-      
+
     def MUSIC(self, expected_sig_num=3):
         """Adjusting num_expected_signals between 1 and 7,
         underestimating the number will lead to missing signal(s)
@@ -146,7 +146,7 @@ class beamform_alg:
         ephi=np.arctan2(np.imag(W),np.real(W))
         P = np.rad2deg(-np.arcsin(ephi/np.pi))
         return P
-    
+
     def DML(self,):
         """DML算法，曲线极小值处为估计角度
 
@@ -163,8 +163,7 @@ class beamform_alg:
             y[i] = np.abs(np.trace( oPa @ self.R) / self.N_array)
         y = y / np.max(y)
         y = 10 * np.log10(y)
-        
-        
+
         # steervec = np.exp(-2j * np.pi / self.lambda0 * self.N * self.d * np.sin(np.deg2rad(self.theta_scan)))
         # yy = []
         # for index in range(steervec.shape[1]):
@@ -174,4 +173,42 @@ class beamform_alg:
         #     yy.append(np.abs(np.trace(oPi_A_theta @ self.R) / self.N_array))
         # yy = yy / np.max(yy)
         # y = 10 * np.log10(np.array(yy).reshape([-1, 1]))
+        return y
+
+    def MSINR(self,theta_inter=[-70,80]):
+        inter_sig = (
+                    np.random.randn(len(theta_inter), self.L1) +
+                    1j * np.random.randn(len(theta_inter), self.L1)
+        )
+        noise = (
+                    np.random.randn(self.N.shape[0], self.L1) + 
+                    1j * np.random.randn(self.N.shape[0], self.L1)
+        )
+
+        inter_steer_vector = np.exp(  # 干扰信号导向矢量
+            -2j
+            * np.pi
+            * self.N
+            * self.d
+            / self.lambda0
+            * np.sin(np.deg2rad(np.array(theta_inter)))
+        )
+
+        inter_steer_sig = inter_steer_vector @ inter_sig + 0.05 * noise
+        inter_sig_R = (
+            inter_steer_sig @ inter_steer_sig.T.conj() / inter_steer_sig.shape[0]
+        )  # inter_sig_R为干扰信号的自相关矩阵
+        W_opt = np.linalg.inv(inter_sig_R) @ self.steer_vector  # MSINR准则下最优权矢量
+        # self.R为目标信号的自相关矩阵
+        yy = []
+        for th in self.theta_scan[0]:
+            steervect = np.exp(
+                -2j * np.pi / self.lambda0 * self.N * self.d * np.sin(np.deg2rad(th))
+            )
+            yy.append(abs(W_opt.T.conj() @ steervect))
+        yy = np.array(yy)
+        yy = yy / np.max(yy, 0)
+        yy = np.sum(yy, 1)
+        yy = yy / np.max(yy)
+        y = 10 * np.log10(yy.reshape([-1, 1]))
         return y

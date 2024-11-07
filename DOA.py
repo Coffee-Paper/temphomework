@@ -15,7 +15,14 @@ def generate_y(angle_in,SNR,N_array,snaps,sig_type,space_smooth,eq_array):
                               space_smooth=space_smooth,
                               eq_array=eq_array)
     ########## signal_type=1使得前两个信号为相关信号，取0则全是非相干信号
-    return  instanceWF.CBF(),instanceWF.MVDR(),instanceWF.MUSIC(),instanceWF.Espirit(),instanceWF.DML()
+    return (
+        instanceWF.CBF(),
+        instanceWF.MVDR(),
+        instanceWF.MUSIC(),
+        instanceWF.Espirit(),
+        instanceWF.DML(),
+        instanceWF.MSINR(),
+    )
 
 # 初始化图形和坐标轴
 fig, ax = plt.subplots(figsize=(9, 7))
@@ -35,24 +42,26 @@ space_smooth = False
 eq_array = 8
 
 theta = np.arange(-90, 90, 0.1)
-P_CBF,P_MVDR,P_MUSIC,P_Espirit,P_DML = generate_y([angle_offset,angle_offset2,angle_offset3],
-                                                  SNR_init,
-                                                  N_array_init,
-                                                  snaps_init,
-                                                  sig_type,
-                                                  space_smooth,
-                                                  eq_array)
+P_CBF, P_MVDR, P_MUSIC, P_Espirit, P_DML, P_MSINR = generate_y(
+                                                    [angle_offset,angle_offset2,angle_offset3],
+                                                    SNR_init,
+                                                    N_array_init,
+                                                    snaps_init,
+                                                    sig_type,
+                                                    space_smooth,
+                                                    eq_array)
 line_CBF, = ax.plot((theta), P_CBF, lw=1,label='CBF')
 line_MVDR, = ax.plot((theta), P_MVDR, lw=1,label='MVDR')
 line_MUSIC, = ax.plot((theta), P_MUSIC, lw=1,label='MUSIC')
 Dot_Espirit = ax.scatter(P_Espirit, np.zeros(len(P_Espirit)), marker='x', label='Espirit')
 line_DML, = ax.plot((theta), P_DML, lw=1,label='DML')
+line_MSINR = ax.plot((theta), P_MSINR, lw=1,label='MSINR')
 ax.set_title('Power-Angle Pattern')
 ax.set_xlabel('Angle (degrees)')
 ax.set_ylabel('Power (dB)')
 ax.grid()
 ax.set_xlim([-90, 90])
-ax.set_ylim([-100, 10])
+ax.set_ylim([-70, 10])
 ax.legend(bbox_to_anchor=(1.05, 1))
 
 # 添加滑块
@@ -78,7 +87,7 @@ ax_slider7 = plt.axes([0.1, 0.00, 0.8, 0.03])
 slider7 = Slider(ax_slider7, 'eq_array', 1, 32, valinit=eq_array,valstep=1)
 
 rax = plt.axes([0.75, 0.4, 0.15, 0.1])  # 开关放在画布右侧
-check = CheckButtons(rax, ['Signal Type'], [False])
+check = CheckButtons(rax, ['Coherent'], [False])
 
 rax2 = plt.axes([0.75, 0.5, 0.15, 0.1])  # 开关放在画布右侧
 check2 = CheckButtons(rax2, ['Space Smooth'], [False])
@@ -92,19 +101,20 @@ def update(val):
     N_array = (slider5.val)
     snaps = (slider6.val)
     eq_array = (slider7.val)
-    P_CBF,P_MVDR,P_MUSIC,P_Espirit,P_DML = generate_y([angle,angle2,angle3],
+    P_CBF,P_MVDR,P_MUSIC,P_Espirit,P_DML,P_MSINR = generate_y([angle,angle2,angle3],
                                                       SNR=SNR,
                                                       N_array=N_array,
                                                       snaps=snaps,
                                                       sig_type=sig_type,
                                                       space_smooth=space_smooth,
                                                       eq_array=eq_array
-                                                      )    
+                                                      )
     line_CBF.set_ydata(P_CBF)
     line_MVDR.set_ydata(P_MVDR)
     line_MUSIC.set_ydata(P_MUSIC)
     Dot_Espirit.set_offsets(np.c_[P_Espirit,np.zeros(len(P_Espirit))])
     line_DML.set_ydata(P_DML)
+    line_MSINR[0].set_ydata(P_MSINR)
     fig.canvas.draw_idle()
 
 def toggle_signal_type(val):
@@ -114,14 +124,14 @@ def toggle_signal_type(val):
     else:
         sig_type = 0  # 切换信号类型
     update(val)
-    
+
 def toggle_space_smooth(val):
     global space_smooth
     if space_smooth == False:
-        ax.set_ylim([-200, 10])
+        ax.set_ylim([-200, 20])
         space_smooth = True
     else:
-        ax.set_ylim([-100, 10])
+        ax.set_ylim([-70, 10])
         space_smooth = False  # 切换信号类型
     update(val)
 
