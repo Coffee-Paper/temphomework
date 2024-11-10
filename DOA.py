@@ -4,7 +4,7 @@ from matplotlib.widgets import Slider, CheckButtons
 from beamforming import beamform_alg
 
 # 生成功率-角度数据
-def generate_y(angle_in,SNR,N_array,snaps,sig_type,space_smooth,eq_array):
+def generate_y(angle_in,SNR,N_array,snaps,sig_type,space_smooth,eq_array,intersig):
     ########## 此处调节信噪比等参数
     instanceWF = beamform_alg(f0=1.5e9,
                               theta_in=angle_in,
@@ -13,7 +13,7 @@ def generate_y(angle_in,SNR,N_array,snaps,sig_type,space_smooth,eq_array):
                               N_array=N_array,
                               L1=snaps,
                               space_smooth=space_smooth,
-                              eq_array=eq_array)
+                              eq_array=eq_array,)
     ########## signal_type=1使得前两个信号为相关信号，取0则全是非相干信号
     return (
         instanceWF.CBF(),
@@ -21,12 +21,12 @@ def generate_y(angle_in,SNR,N_array,snaps,sig_type,space_smooth,eq_array):
         instanceWF.MUSIC(),
         instanceWF.Espirit(),
         instanceWF.DML(),
-        instanceWF.MSINR(),
+        instanceWF.MSINR(theta_inter=intersig),
     )
 
 # 初始化图形和坐标轴
 fig, ax = plt.subplots(figsize=(9, 7))
-plt.subplots_adjust(bottom=0.4,right=0.7)
+plt.subplots_adjust(bottom=0.5,right=0.75)
 
 # 初始角度偏移量
 angle_offset = -30
@@ -40,6 +40,7 @@ snaps_init = 1024
 sig_type = 1
 space_smooth = False
 eq_array = 8
+intersig=[-70,80]
 
 theta = np.arange(-90, 90, 0.1)
 P_CBF, P_MVDR, P_MUSIC, P_Espirit, P_DML, P_MSINR = generate_y(
@@ -49,7 +50,8 @@ P_CBF, P_MVDR, P_MUSIC, P_Espirit, P_DML, P_MSINR = generate_y(
                                                     snaps_init,
                                                     sig_type,
                                                     space_smooth,
-                                                    eq_array)
+                                                    eq_array,
+                                                    intersig)
 line_CBF, = ax.plot((theta), P_CBF, lw=1,label='CBF')
 line_MVDR, = ax.plot((theta), P_MVDR, lw=1,label='MVDR')
 line_MUSIC, = ax.plot((theta), P_MUSIC, lw=1,label='MUSIC')
@@ -65,31 +67,37 @@ ax.set_ylim([-70, 10])
 ax.legend(bbox_to_anchor=(1.05, 1))
 
 # 添加滑块
-ax_slider = plt.axes([0.1, 0.30, 0.8, 0.03])
+ax_slider = plt.axes([0.1, 0.40, 0.8, 0.03])
 slider = Slider(ax_slider, 'Angle1', -90, 90, valinit=angle_offset,valstep=0.1)
 
-ax_slider2 = plt.axes([0.1, 0.25, 0.8, 0.03])
+ax_slider2 = plt.axes([0.1, 0.35, 0.8, 0.03])
 slider2 = Slider(ax_slider2, 'Angle2', -90, 90, valinit=angle_offset2,valstep=0.1)
 
-ax_slider3 = plt.axes([0.1, 0.20, 0.8, 0.03])
+ax_slider3 = plt.axes([0.1, 0.30, 0.8, 0.03])
 slider3 = Slider(ax_slider3, 'Angle3', -90, 90, valinit=angle_offset3,valstep=0.1)
 
-ax_slider4 = plt.axes([0.1, 0.15, 0.8, 0.03])
+ax_slider4 = plt.axes([0.1, 0.25, 0.8, 0.03])
 slider4 = Slider(ax_slider4, 'SNR', 1, 30, valinit=SNR_init,valstep=0.1)
 
-ax_slider5 = plt.axes([0.1, 0.10, 0.8, 0.03])
+ax_slider5 = plt.axes([0.1, 0.20, 0.8, 0.03])
 slider5 = Slider(ax_slider5, 'N_array', 8, 32, valinit=N_array_init,valstep=1)
 
-ax_slider6 = plt.axes([0.1, 0.05, 0.8, 0.03])
+ax_slider6 = plt.axes([0.1, 0.15, 0.8, 0.03])
 slider6 = Slider(ax_slider6, 'snaps', 100, 1000, valinit=snaps_init,valstep=1)
 
-ax_slider7 = plt.axes([0.1, 0.00, 0.8, 0.03])
+ax_slider7 = plt.axes([0.1, 0.10, 0.8, 0.03])
 slider7 = Slider(ax_slider7, 'eq_array', 1, 32, valinit=eq_array,valstep=1)
 
-rax = plt.axes([0.75, 0.4, 0.15, 0.1])  # 开关放在画布右侧
+ax_slider8 = plt.axes([0.1, 0.05, 0.8, 0.03])
+slider8 = Slider(ax_slider8, 'inter_sig1', -90, 90, valinit=-70,valstep=0.1)
+
+ax_slider9 = plt.axes([0.1, 0.00, 0.8, 0.03])
+slider9 = Slider(ax_slider9, 'inter_sig2', -90, 90, valinit=80,valstep=0.1)
+
+rax = plt.axes([0.77, 0.5, 0.15, 0.05])  # 开关放在画布右侧
 check = CheckButtons(rax, ['Coherent'], [False])
 
-rax2 = plt.axes([0.75, 0.5, 0.15, 0.1])  # 开关放在画布右侧
+rax2 = plt.axes([0.77, 0.6, 0.15, 0.05])  # 开关放在画布右侧
 check2 = CheckButtons(rax2, ['Space Smooth'], [False])
 
 # 更新函数
@@ -101,13 +109,16 @@ def update(val):
     N_array = (slider5.val)
     snaps = (slider6.val)
     eq_array = (slider7.val)
+    inter_ang1 = (slider8.val)
+    inter_ang2 = (slider9.val)
     P_CBF,P_MVDR,P_MUSIC,P_Espirit,P_DML,P_MSINR = generate_y([angle,angle2,angle3],
                                                       SNR=SNR,
                                                       N_array=N_array,
                                                       snaps=snaps,
                                                       sig_type=sig_type,
                                                       space_smooth=space_smooth,
-                                                      eq_array=eq_array
+                                                      eq_array=eq_array,
+                                                      intersig=[inter_ang1,inter_ang2]
                                                       )
     line_CBF.set_ydata(P_CBF)
     line_MVDR.set_ydata(P_MVDR)
@@ -143,6 +154,8 @@ slider4.on_changed(update)
 slider5.on_changed(update)
 slider6.on_changed(update)
 slider7.on_changed(update)
+slider8.on_changed(update)
+slider9.on_changed(update)
 check.on_clicked(toggle_signal_type)
 check2.on_clicked(toggle_space_smooth)
 

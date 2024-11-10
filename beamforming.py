@@ -175,7 +175,7 @@ class beamform_alg:
         # y = 10 * np.log10(np.array(yy).reshape([-1, 1]))
         return y
 
-    def MSINR(self,theta_inter=[-70,80]):
+    def MSINR(self,theta_inter=[]):
         inter_sig = (
                     np.random.randn(len(theta_inter), self.L1) +
                     1j * np.random.randn(len(theta_inter), self.L1)
