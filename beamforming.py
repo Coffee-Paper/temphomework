@@ -155,7 +155,7 @@ class beamform_alg:
         """
         steervec = np.exp(-2j * np.pi / self.lambda0 * self.N * self.d * np.sin(np.deg2rad(self.theta_scan)))
         scan_len = steervec.shape[1]
-        y = np.zeros([scan_len,1],dtype=complex)
+        y = np.zeros([scan_len,1])
         for i in range(0,scan_len):
             scan = steervec[:,i].reshape([-1,1])
             Pa = scan / (scan.T.conj() @ scan) @ scan.T.conj()
@@ -195,9 +195,16 @@ class beamform_alg:
         )
 
         inter_steer_sig = inter_steer_vector @ inter_sig + 0.05 * noise
+
         inter_sig_R = (
-            inter_steer_sig @ inter_steer_sig.T.conj() / inter_steer_sig.shape[0]
+            (inter_steer_sig @ inter_steer_sig.T.conj() / inter_steer_sig.shape[0])
+            if mix == False
+            else (
+                inter_steer_sig @ inter_steer_sig.T.conj() / inter_steer_sig.shape[0]
+                + self.R
+            )
         )  # inter_sig_R为干扰信号的自相关矩阵
+
         W_opt = np.linalg.inv(inter_sig_R) @ self.steer_vector  # MSINR准则下最优权矢量
         # self.R为目标信号的自相关矩阵
         yy = []

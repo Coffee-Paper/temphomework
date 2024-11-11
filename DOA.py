@@ -4,7 +4,7 @@ from matplotlib.widgets import Slider, CheckButtons
 from beamforming import beamform_alg
 
 # 生成功率-角度数据
-def generate_y(angle_in,SNR,N_array,snaps,sig_type,space_smooth,eq_array,intersig):
+def generate_y(angle_in,SNR,N_array,snaps,sig_type,space_smooth,eq_array,intersig,mix_MSINR):
     ########## 此处调节信噪比等参数
     instanceWF = beamform_alg(f0=1.5e9,
                               theta_in=angle_in,
@@ -21,7 +21,7 @@ def generate_y(angle_in,SNR,N_array,snaps,sig_type,space_smooth,eq_array,intersi
         instanceWF.MUSIC(),
         instanceWF.Espirit(),
         instanceWF.DML(),
-        instanceWF.MSINR(theta_inter=intersig),
+        instanceWF.MSINR(theta_inter=intersig,mix=mix_MSINR),
     )
 
 # 初始化图形和坐标轴
@@ -41,6 +41,7 @@ sig_type = 1
 space_smooth = False
 eq_array = 8
 intersig=[-70,80]
+mix_MSINR=False
 
 theta = np.arange(-90, 90, 0.1)
 P_CBF, P_MVDR, P_MUSIC, P_Espirit, P_DML, P_MSINR = generate_y(
@@ -51,7 +52,8 @@ P_CBF, P_MVDR, P_MUSIC, P_Espirit, P_DML, P_MSINR = generate_y(
                                                     sig_type,
                                                     space_smooth,
                                                     eq_array,
-                                                    intersig)
+                                                    intersig,
+                                                    mix_MSINR)
 line_CBF, = ax.plot((theta), P_CBF, lw=1,label='CBF')
 line_MVDR, = ax.plot((theta), P_MVDR, lw=1,label='MVDR')
 line_MUSIC, = ax.plot((theta), P_MUSIC, lw=1,label='MUSIC')
@@ -97,8 +99,11 @@ slider9 = Slider(ax_slider9, 'inter_sig2', -90, 90, valinit=80,valstep=0.1)
 rax = plt.axes([0.77, 0.5, 0.15, 0.05])  # 开关放在画布右侧
 check = CheckButtons(rax, ['Coherent'], [False])
 
-rax2 = plt.axes([0.77, 0.6, 0.15, 0.05])  # 开关放在画布右侧
+rax2 = plt.axes([0.77, 0.55, 0.15, 0.05])  # 开关放在画布右侧
 check2 = CheckButtons(rax2, ['Space Smooth'], [False])
+
+rax3 = plt.axes([0.77, 0.6, 0.15, 0.05])  # 开关放在画布右侧
+check3 = CheckButtons(rax3, ['Mix in MSINR'], [False])
 
 # 更新函数
 def update(val):
@@ -118,7 +123,8 @@ def update(val):
                                                       sig_type=sig_type,
                                                       space_smooth=space_smooth,
                                                       eq_array=eq_array,
-                                                      intersig=[inter_ang1,inter_ang2]
+                                                      intersig=[inter_ang1,inter_ang2],
+                                                      mix_MSINR=mix_MSINR
                                                       )
     line_CBF.set_ydata(P_CBF)
     line_MVDR.set_ydata(P_MVDR)
@@ -146,6 +152,14 @@ def toggle_space_smooth(val):
         space_smooth = False  # 切换信号类型
     update(val)
 
+def toggle_mix_MSINR(val):
+    global mix_MSINR
+    if mix_MSINR == False:
+        mix_MSINR = True
+    else:
+        mix_MSINR = False  # 切换信号类型
+    update(val)
+
 # 连接滑块事件
 slider.on_changed(update)
 slider2.on_changed(update)
@@ -158,6 +172,7 @@ slider8.on_changed(update)
 slider9.on_changed(update)
 check.on_clicked(toggle_signal_type)
 check2.on_clicked(toggle_space_smooth)
+check3.on_clicked(toggle_mix_MSINR)
 
 # 显示窗口
 plt.show()
